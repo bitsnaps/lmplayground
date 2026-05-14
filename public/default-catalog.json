@@ -1,0 +1,51 @@
+{
+  "providers": [
+    {
+      "id": "prov_openai",
+      "name": "OpenAI",
+      "base_url": "https://api.openai.com/v1/chat/completions",
+      "auth_header": "Bearer {{API_KEY}}"
+    },
+    {
+      "id": "prov_anthropic",
+      "name": "Anthropic",
+      "base_url": "https://api.anthropic.com/v1/messages",
+      "auth_header": "{{API_KEY}}"
+    },
+    {
+      "id": "prov_ollama",
+      "name": "Ollama (Local)",
+      "base_url": "http://localhost:11434/api/generate",
+      "auth_header": ""
+    }
+  ],
+  "models": [
+    {
+      "id": "mod_gpt4o",
+      "provider_id": "prov_openai",
+      "name": "GPT-4o",
+      "api_model_id": "gpt-4o",
+      "type": "text",
+      "supports_vision": true,
+      "context_window": 128000
+    },
+    {
+      "id": "mod_claude35",
+      "provider_id": "prov_anthropic",
+      "name": "Claude 3.5 Sonnet",
+      "api_model_id": "claude-3-5-sonnet-20240620",
+      "type": "text",
+      "supports_vision": true,
+      "context_window": 200000
+    },
+    {
+      "id": "mod_llama3",
+      "provider_id": "prov_ollama",
+      "name": "Llama 3 8B",
+      "api_model_id": "llama3",
+      "type": "text",
+      "supports_vision": false,
+      "context_window": 8192
+    }
+  ]
+}

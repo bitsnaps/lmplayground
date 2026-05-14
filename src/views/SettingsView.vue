@@ -1,0 +1,386 @@
+<template>
+    <div class="container-fluid max-w-custom">
+        <h2 class="mb-4">Data Management & Settings</h2>
+
+        <!-- Bootstrap Tabs Navigation -->
+        <ul class="nav nav-tabs mb-4" id="settingsTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button
+                    class="nav-link active"
+                    data-bs-toggle="tab"
+                    data-bs-target="#keys-tab"
+                >
+                    🔑 API Keys
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button
+                    class="nav-link"
+                    data-bs-toggle="tab"
+                    data-bs-target="#providers-tab"
+                >
+                    🌐 Providers
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button
+                    class="nav-link"
+                    data-bs-toggle="tab"
+                    data-bs-target="#models-tab"
+                >
+                    🧠 Models
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="settingsTabsContent">
+            <!-- API KEYS TAB -->
+            <div
+                class="tab-pane fade show active"
+                id="keys-tab"
+                role="tabpanel"
+            >
+                <div class="card shadow-sm border-0">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">API Key Configuration</h5>
+                        <p class="text-muted small">
+                            Keys are stored securely in your browser's
+                            LocalStorage and are only sent to the proxy server
+                            when making a request.
+                        </p>
+
+                        <div
+                            v-for="prov in store.providers"
+                            :key="prov.id"
+                            class="mb-3 row align-items-center"
+                        >
+                            <label class="col-sm-3 col-form-label fw-bold">{{
+                                prov.name
+                            }}</label>
+                            <div class="col-sm-9">
+                                <div class="input-group">
+                                    <span class="input-group-text"
+                                        ><i class="bi bi-key"></i
+                                    ></span>
+                                    <input
+                                        type="password"
+                                        class="form-control"
+                                        :value="store.apiKeys[prov.id] || ''"
+                                        @input="
+                                            updateApiKey(
+                                                prov.id,
+                                                $event.target.value,
+                                            )
+                                        "
+                                        placeholder="Enter API Key (Leave blank if local/unauthenticated)"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PROVIDERS TAB -->
+            <div class="tab-pane fade" id="providers-tab" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-7">
+                        <div class="list-group shadow-sm mb-4">
+                            <div
+                                v-for="prov in store.providers"
+                                :key="prov.id"
+                                class="list-group-item d-flex justify-content-between align-items-center p-3"
+                            >
+                                <div>
+                                    <h6 class="mb-1">{{ prov.name }}</h6>
+                                    <small class="text-muted text-break">{{
+                                        prov.base_url
+                                    }}</small>
+                                </div>
+                                <button
+                                    @click="store.deleteProvider(prov.id)"
+                                    class="btn btn-outline-danger btn-sm"
+                                >
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-5">
+                        <div class="card shadow-sm border-0 bg-body-tertiary">
+                            <div class="card-body">
+                                <h5 class="card-title">Add New Provider</h5>
+                                <form @submit.prevent="submitProvider">
+                                    <div class="mb-2">
+                                        <label class="form-label small"
+                                            >Provider Name</label
+                                        >
+                                        <input
+                                            type="text"
+                                            v-model="newProvider.name"
+                                            class="form-control form-control-sm"
+                                            required
+                                        />
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small"
+                                            >Base URL</label
+                                        >
+                                        <input
+                                            type="url"
+                                            v-model="newProvider.base_url"
+                                            class="form-control form-control-sm"
+                                            required
+                                        />
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small"
+                                            >Auth Header Format</label
+                                        >
+                                        <input
+                                            type="text"
+                                            v-model="newProvider.auth_header"
+                                            class="form-control form-control-sm"
+                                            placeholder="e.g. Bearer {{API_KEY}}"
+                                        />
+                                        <div
+                                            class="form-text"
+                                            style="font-size: 0.75rem"
+                                        >
+                                            Use <code>{{ API_KEY }}</code> as a
+                                            placeholder.
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        class="btn btn-primary btn-sm w-100"
+                                    >
+                                        Add Provider
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODELS TAB -->
+            <div class="tab-pane fade" id="models-tab" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-7">
+                        <div class="list-group shadow-sm mb-4">
+                            <div
+                                v-for="mod in store.models"
+                                :key="mod.id"
+                                class="list-group-item p-3"
+                            >
+                                <div
+                                    class="d-flex justify-content-between align-items-start"
+                                >
+                                    <div>
+                                        <h6 class="mb-1">
+                                            {{ mod.name }}
+                                            <span
+                                                class="badge bg-secondary ms-2"
+                                                >{{ mod.type }}</span
+                                            >
+                                            <i
+                                                v-if="mod.supports_vision"
+                                                class="bi bi-eye ms-2 text-info"
+                                                title="Supports Vision"
+                                            ></i>
+                                        </h6>
+                                        <small
+                                            class="text-muted font-monospace"
+                                            >{{ mod.api_model_id }}</small
+                                        >
+                                    </div>
+                                    <button
+                                        @click="store.deleteModel(mod.id)"
+                                        class="btn btn-outline-danger btn-sm"
+                                    >
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-5">
+                        <div class="card shadow-sm border-0 bg-body-tertiary">
+                            <div class="card-body">
+                                <h5 class="card-title">Add New Model</h5>
+                                <form @submit.prevent="submitModel">
+                                    <div class="mb-2">
+                                        <label class="form-label small"
+                                            >Provider</label
+                                        >
+                                        <select
+                                            v-model="newModel.provider_id"
+                                            class="form-select form-select-sm"
+                                            required
+                                        >
+                                            <option
+                                                v-for="prov in store.providers"
+                                                :key="prov.id"
+                                                :value="prov.id"
+                                            >
+                                                {{ prov.name }}
+                                            </option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small"
+                                            >Display Name</label
+                                        >
+                                        <input
+                                            type="text"
+                                            v-model="newModel.name"
+                                            class="form-control form-control-sm"
+                                            placeholder="e.g. GPT-4 Turbo"
+                                            required
+                                        />
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small"
+                                            >API Model ID</label
+                                        >
+                                        <input
+                                            type="text"
+                                            v-model="newModel.api_model_id"
+                                            class="form-control form-control-sm"
+                                            placeholder="e.g. gpt-4-turbo"
+                                            required
+                                        />
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small"
+                                            >Capability Type</label
+                                        >
+                                        <select
+                                            v-model="newModel.type"
+                                            class="form-select form-select-sm"
+                                        >
+                                            <option value="text">
+                                                Text Generation
+                                            </option>
+                                            <option value="image">
+                                                Image Generation
+                                            </option>
+                                            <option value="embedding">
+                                                Embeddings
+                                            </option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-2 form-check">
+                                        <input
+                                            type="checkbox"
+                                            v-model="newModel.supports_vision"
+                                            class="form-check-input"
+                                            id="visionCheck"
+                                        />
+                                        <label
+                                            class="form-check-label small"
+                                            for="visionCheck"
+                                            >Supports Vision (Images)</label
+                                        >
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small"
+                                            >Context Window</label
+                                        >
+                                        <input
+                                            type="number"
+                                            v-model="newModel.context_window"
+                                            class="form-control form-control-sm"
+                                            placeholder="e.g. 128000"
+                                        />
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        class="btn btn-success btn-sm w-100"
+                                    >
+                                        Add Model
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<script setup>
+import { ref, onMounted } from "vue";
+import { useProvidersStore } from "../store/providers";
+
+const store = useProvidersStore();
+
+// Initialize Data if not loaded
+onMounted(() => {
+    if (!store.isLoaded) {
+        store.initializeData();
+    }
+});
+
+// Update API Key with debouncing (simple timeout)
+let timeout = null;
+const updateApiKey = (providerId, value) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => {
+        store.setApiKey(providerId, value);
+    }, 500);
+};
+
+// Local form state for Providers
+const newProvider = ref({
+    name: "",
+    base_url: "",
+    auth_header: "Bearer {{API_KEY}}",
+});
+
+const submitProvider = () => {
+    store.addProvider({ ...newProvider.value });
+    newProvider.value = {
+        name: "",
+        base_url: "",
+        auth_header: "Bearer {{API_KEY}}",
+    };
+};
+
+// Local form state for Models
+const newModel = ref({
+    provider_id: "",
+    name: "",
+    api_model_id: "",
+    type: "text",
+    supports_vision: false,
+    context_window: 8192,
+});
+
+const submitModel = () => {
+    store.addModel({ ...newModel.value });
+    newModel.value = {
+        provider_id: "",
+        name: "",
+        api_model_id: "",
+        type: "text",
+        supports_vision: false,
+        context_window: 8192,
+    };
+};
+</script>
+
+<style scoped>
+.max-w-custom {
+    max-width: 900px;
+    margin: 0 auto;
+}
+/* Ensure tab content has a bit of padding */
+.tab-content {
+    padding-top: 1rem;
+}
+</style>

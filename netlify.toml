@@ -1,0 +1,16 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+# Rewrite API routes to the serverless functions
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+# Fallback for Vue Router (SPA routing)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
