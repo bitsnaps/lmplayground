@@ -55,6 +55,25 @@ export const useProvidersStore = defineStore("providers", () => {
   const deleteModel = async (id) => {
     models.value = models.value.filter((m) => m.id !== id);
     await storageService.saveData("models", models.value);
+    await storageService.deleteRecord("models", id);
+  };
+
+  const updateProvider = async (id, updates) => {
+    const index = providers.value.findIndex((p) => p.id === id);
+    if (index !== -1) {
+      providers.value[index] = { ...providers.value[index], ...updates };
+      await storageService.saveData("providers", providers.value);
+      await storageService.updateRecord("providers", id, updates);
+    }
+  };
+
+  const updateModel = async (id, updates) => {
+    const index = models.value.findIndex((m) => m.id === id);
+    if (index !== -1) {
+      models.value[index] = { ...models.value[index], ...updates };
+      await storageService.saveData("models", models.value);
+      await storageService.updateRecord("models", id, updates);
+    }
   };
 
   const setApiKey = (providerId, key) => {
@@ -70,8 +89,10 @@ export const useProvidersStore = defineStore("providers", () => {
     initializeData,
     addProvider,
     deleteProvider,
+    updateProvider,
     addModel,
     deleteModel,
+    updateModel,
     setApiKey,
   };
 });
