@@ -27,8 +27,13 @@ html {
 
 /* Sidebar active link styling */
 .nav-pills .nav-link.active {
-    background-color: var(--bs-primary) !important;
-    color: white !important;
+  background-color: var(--bs-primary) !important;
+  color: white !important;
+}
+
+/* Sidebar transition helpers */
+.sidebar-label {
+  transition: opacity 0.2s ease, width 0.2s ease;
 }
 
 /* Add these to the bottom of src/assets/css/main.css */

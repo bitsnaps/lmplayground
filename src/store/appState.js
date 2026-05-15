@@ -4,6 +4,7 @@ import { ref, onMounted } from "vue";
 export const useAppStateStore = defineStore("appState", () => {
   const theme = ref("dark");
   const storageMode = ref("local"); // 'local' or 'postgres'
+  const sidebarCollapsed = ref(false);
 
   const toggleTheme = () => {
     theme.value = theme.value === "dark" ? "light" : "dark";
@@ -11,9 +12,12 @@ export const useAppStateStore = defineStore("appState", () => {
     localStorage.setItem("omni_theme", theme.value);
   };
 
+  const toggleSidebar = () => {
+    sidebarCollapsed.value = !sidebarCollapsed.value;
+    localStorage.setItem("omni_sidebar_collapsed", sidebarCollapsed.value);
+  };
+
   const checkStorageMode = () => {
-    // In a real scenario, we might hit a backend ping endpoint here to see if DB is active.
-    // For now, we default to local, but allow manual toggle for UI demonstration.
     const savedMode = localStorage.getItem("omni_storage_mode");
     if (savedMode) storageMode.value = savedMode;
   };
@@ -29,8 +33,17 @@ export const useAppStateStore = defineStore("appState", () => {
       theme.value = savedTheme;
       document.documentElement.setAttribute("data-bs-theme", theme.value);
     }
+    const savedCollapse = localStorage.getItem("omni_sidebar_collapsed");
+    if (savedCollapse === "true") sidebarCollapsed.value = true;
     checkStorageMode();
   });
 
-  return { theme, storageMode, toggleTheme, setStorageMode };
+  return {
+    theme,
+    storageMode,
+    sidebarCollapsed,
+    toggleTheme,
+    toggleSidebar,
+    setStorageMode,
+  };
 });
