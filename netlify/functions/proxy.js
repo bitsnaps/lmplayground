@@ -1,21 +1,25 @@
+// netlify/functions/proxy.js
 const { stream } = require("@netlify/functions");
 const { Client } = require("pg");
+const { HEADERS } = require("./_shared/cors");
 
-// CORS Headers to allow requests from our Vue app
-const headers = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Content-Type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10MB limit
 
-exports.handler = stream(async (event, context) => {
-  // Handle Preflight OPTIONS request
+exports.handler = stream(async (event) => {
   if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 200, headers, body: "OK" };
+    return { statusCode: 200, headers: HEADERS, body: "OK" };
   }
 
   try {
-    // The frontend passes everything dynamically to avoid hardcoding providers
+    // Size check
+    if (event.body && event.body.length > MAX_BODY_SIZE) {
+      return {
+        statusCode: 413,
+        headers: { ...HEADERS, "Content-Type": "application/json" },
+        body: JSON.stringify({ error: "Request body too large (max 10MB)." }),
+      };
+    }
+
     const {
       providerUrl,
       payload,
@@ -24,32 +28,47 @@ exports.handler = stream(async (event, context) => {
       clientApiKey,
     } = JSON.parse(event.body);
 
-    let apiKey = clientApiKey;
+    if (!providerUrl || !payload) {
+      return {
+        statusCode: 400,
+        headers: { ...HEADERS, "Content-Type": "application/json" },
+        body: JSON.stringify({ error: "Missing providerUrl or payload." }),
+      };
+    }
 
-    // STORAGE ADAPTER LOGIC:
-    // If we have a DB configured, and the frontend didn't pass a key from LocalStorage,
-    // we securely fetch the API key from PostgreSQL using the providerId.
+    let apiKey = clientApiKey || "";
+
+    // STORAGE ADAPTER: Fetch API key from PostgreSQL if not provided by client
     if (!apiKey && process.env.DATABASE_URL && providerId) {
       const db = new Client({ connectionString: process.env.DATABASE_URL });
-      await db.connect();
-      const res = await db.query(
-        "SELECT api_key FROM providers WHERE id = $1",
-        [providerId],
-      );
-      if (res.rows.length > 0) {
-        apiKey = res.rows[0].api_key;
+      try {
+        await db.connect();
+        const res = await db.query(
+          "SELECT api_key FROM providers WHERE id = $1",
+          [providerId],
+        );
+        if (res.rows.length > 0 && res.rows[0].api_key) {
+          apiKey = res.rows[0].api_key;
+        }
+      } finally {
+        await db.end();
       }
-      await db.end();
     }
 
-    // Replace a placeholder in the auth header with the actual key
-    // Frontend passes something like: { "Authorization": "Bearer {{API_KEY}}" }
+    // Replace {{API_KEY}} placeholder in each header value
     const finalHeaders = {};
-    for (const [key, value] of Object.entries(customHeaders)) {
-      finalHeaders[key] = value.replace("{{API_KEY}}", apiKey || "");
+    for (const [key, value] of Object.entries(customHeaders || {})) {
+      if (value !== undefined && value !== null) {
+        finalHeaders[key] = String(value).replace("{{API_KEY}}", apiKey);
+      }
     }
 
-    // Make the actual call to OpenAI/Anthropic/Ollama etc.
+    // Always ensure Content-Type for the upstream request
+    if (!finalHeaders["Content-Type"]) {
+      finalHeaders["Content-Type"] = "application/json";
+    }
+
+    // Make the upstream API call
     const response = await fetch(providerUrl, {
       method: "POST",
       headers: finalHeaders,
@@ -58,27 +77,33 @@ exports.handler = stream(async (event, context) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Provider API Error (${response.status}): ${errorText}`);
+      return {
+        statusCode: response.status,
+        headers: { ...HEADERS, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          error: `Provider API Error (${response.status}): ${errorText}`,
+        }),
+      };
     }
 
-    // Stream the response back to the frontend
+    // Stream the response back
     return {
       statusCode: 200,
       headers: {
-        ...headers,
-        "Content-Type": "text/event-stream",
+        ...HEADERS,
+        "Content-Type":
+          response.headers.get("content-type") || "text/event-stream",
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
       },
-      // Netlify stream() expects a ReadableStream. The fetch response body is exactly that.
       body: response.body,
     };
-  } catch (error) {
-    console.error("Proxy Error:", error);
+  } catch (err) {
+    console.error("Proxy Error:", err);
     return {
       statusCode: 500,
-      headers,
-      body: JSON.stringify({ error: error.message }),
+      headers: { ...HEADERS, "Content-Type": "application/json" },
+      body: JSON.stringify({ error: err.message }),
     };
   }
 });
