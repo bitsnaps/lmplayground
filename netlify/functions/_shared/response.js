@@ -1,5 +1,5 @@
 // netlify/functions/_shared/response.js
-const { HEADERS } = require("./cors");
+import { HEADERS } from "./cors.js";
 
 function jsonResponse(statusCode, body, extraHeaders = {}) {
   return {
@@ -9,16 +9,14 @@ function jsonResponse(statusCode, body, extraHeaders = {}) {
   };
 }
 
-function success(data, extraHeaders) {
+export function success(data, extraHeaders) {
   return jsonResponse(200, { data }, extraHeaders);
 }
 
-function error(statusCode, message, extraHeaders) {
+export function error(statusCode, message, extraHeaders) {
   return jsonResponse(statusCode, { error: message }, extraHeaders);
 }
 
-function optionsResponse() {
+export function optionsResponse() {
   return { statusCode: 200, headers: HEADERS, body: "OK" };
 }
-
-module.exports = { jsonResponse, success, error, optionsResponse };

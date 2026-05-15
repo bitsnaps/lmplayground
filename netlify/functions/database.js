@@ -1,10 +1,9 @@
 // netlify/functions/database.js
-const { Client } = require("pg");
-const { success, error, optionsResponse } = require("./_shared/response");
+import { createClient, checkDbUrl } from "./_shared/db.js";
+import { success, error, optionsResponse } from "./_shared/response.js";
 
 const ALLOWED_TABLES = ["providers", "models", "chat_history"];
 
-// Whitelist of allowed columns per table to prevent injection
 const TABLE_COLUMNS = {
   providers: ["id", "name", "base_url", "auth_header", "api_key"],
   models: [
@@ -37,18 +36,15 @@ function filterColumns(table, data) {
   return filtered;
 }
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return optionsResponse();
 
-  if (!process.env.DATABASE_URL) {
-    return error(501, "No DATABASE_URL configured. Use LocalStorage mode.");
-  }
+  const noDb = checkDbUrl();
+  if (noDb) return noDb;
 
-  const db = new Client({ connectionString: process.env.DATABASE_URL });
+  const db = await createClient();
 
   try {
-    await db.connect();
-
     const method = event.httpMethod;
     const params = event.queryStringParameters || {};
     const { table, id } = params;
@@ -61,10 +57,7 @@ exports.handler = async (event) => {
     switch (method) {
       case "GET": {
         if (id) {
-          result = await db.query(
-            `SELECT * FROM ${table} WHERE id = $1`,
-            [id],
-          );
+          result = await db.query(`SELECT * FROM ${table} WHERE id = $1`, [id]);
         } else {
           result = await db.query(
             `SELECT * FROM ${table} ORDER BY created_at DESC`,
@@ -79,9 +72,7 @@ exports.handler = async (event) => {
         const keys = Object.keys(filtered);
         const values = Object.values(filtered);
         if (keys.length === 0) throw new Error("No valid columns provided.");
-        const placeholders = keys
-          .map((_, i) => `$${i + 1}`)
-          .join(", ");
+        const placeholders = keys.map((_, i) => `$${i + 1}`).join(", ");
         result = await db.query(
           `INSERT INTO ${table} (${keys.join(", ")}) VALUES (${placeholders}) RETURNING *`,
           values,
@@ -96,9 +87,7 @@ exports.handler = async (event) => {
         const keys = Object.keys(filtered);
         const values = Object.values(filtered);
         if (keys.length === 0) throw new Error("No valid columns provided.");
-        const setClauses = keys
-          .map((k, i) => `${k} = $${i + 1}`)
-          .join(", ");
+        const setClauses = keys.map((k, i) => `${k} = $${i + 1}`).join(", ");
         values.push(id);
         result = await db.query(
           `UPDATE ${table} SET ${setClauses} WHERE id = $${values.length} RETURNING *`,

@@ -2,68 +2,44 @@
 import { describe, it, expect } from "vitest";
 
 const {
-  jsonResponse,
   success,
   error,
   optionsResponse,
-} = await import("../netlify/functions/_shared/response.js");
+} = await import("../../netlify/functions/_shared/response.js");
 
 describe("_shared/response", () => {
-  describe("jsonResponse", () => {
-    it("should return a properly formatted Netlify function response", () => {
-      const res = jsonResponse(200, { hello: "world" });
-      expect(res.statusCode).toBe(200);
-      expect(res.headers["Content-Type"]).toBe("application/json");
-      expect(res.headers["Access-Control-Allow-Origin"]).toBe("*");
-      const body = JSON.parse(res.body);
-      expect(body.hello).toBe("world");
-    });
-
-    it("should merge extra headers", () => {
-      const res = jsonResponse(200, {}, { "X-Custom": "yes" });
-      expect(res.headers["X-Custom"]).toBe("yes");
-      expect(res.headers["Content-Type"]).toBe("application/json");
-    });
+  it("should return a success response with data", () => {
+    const res = success({ id: 1 });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.data).toEqual({ id: 1 });
   });
 
-  describe("success", () => {
-    it("should return 200 with data wrapper", () => {
-      const res = success({ items: [1, 2, 3] });
-      expect(res.statusCode).toBe(200);
-      const body = JSON.parse(res.body);
-      expect(body.data).toEqual({ items: [1, 2, 3] });
-    });
-
-    it("should return 200 with array data", () => {
-      const res = success([1, 2]);
-      expect(res.statusCode).toBe(200);
-      const body = JSON.parse(res.body);
-      expect(body.data).toEqual([1, 2]);
-    });
+  it("should return an error response with message", () => {
+    const res = error(400, "Bad request");
+    expect(res.statusCode).toBe(400);
+    const body = JSON.parse(res.body);
+    expect(body.error).toBe("Bad request");
   });
 
-  describe("error", () => {
-    it("should return error status with error message", () => {
-      const res = error(400, "Bad request");
-      expect(res.statusCode).toBe(400);
-      const body = JSON.parse(res.body);
-      expect(body.error).toBe("Bad request");
-    });
-
-    it("should return 500 for server errors", () => {
-      const res = error(500, "Internal error");
-      expect(res.statusCode).toBe(500);
-      const body = JSON.parse(res.body);
-      expect(body.error).toBe("Internal error");
-    });
+  it("should return an OPTIONS response for CORS preflight", () => {
+    const res = optionsResponse();
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toBe("OK");
   });
 
-  describe("optionsResponse", () => {
-    it("should return 200 with CORS headers", () => {
-      const res = optionsResponse();
-      expect(res.statusCode).toBe(200);
-      expect(res.headers["Access-Control-Allow-Origin"]).toBe("*");
-      expect(res.body).toBe("OK");
-    });
+  it("success response should include CORS headers", () => {
+    const res = success([]);
+    expect(res.headers["Access-Control-Allow-Origin"]).toBe("*");
+  });
+
+  it("error response should include CORS headers", () => {
+    const res = error(500, "fail");
+    expect(res.headers["Access-Control-Allow-Origin"]).toBe("*");
+  });
+
+  it("optionsResponse should include CORS headers", () => {
+    const res = optionsResponse();
+    expect(res.headers["Access-Control-Allow-Origin"]).toBe("*");
   });
 });

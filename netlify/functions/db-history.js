@@ -1,19 +1,16 @@
 // netlify/functions/db-history.js
-const { Client } = require("pg");
-const { success, error, optionsResponse } = require("./_shared/response");
+import { createClient, checkDbUrl } from "./_shared/db.js";
+import { success, error, optionsResponse } from "./_shared/response.js";
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return optionsResponse();
 
-  if (!process.env.DATABASE_URL) {
-    return error(501, "No DATABASE_URL configured. Use LocalStorage mode.");
-  }
+  const noDb = checkDbUrl();
+  if (noDb) return noDb;
 
-  const db = new Client({ connectionString: process.env.DATABASE_URL });
+  const db = await createClient();
 
   try {
-    await db.connect();
-
     const method = event.httpMethod;
     const params = event.queryStringParameters || {};
     const body = event.body ? JSON.parse(event.body) : null;
@@ -22,7 +19,6 @@ exports.handler = async (event) => {
 
     switch (method) {
       case "GET": {
-        // Get messages for a session, or list all sessions
         const { session_id } = params;
         if (session_id) {
           result = await db.query(
@@ -30,13 +26,12 @@ exports.handler = async (event) => {
             [session_id],
           );
         } else {
-          // Return list of distinct sessions with last message preview
           result = await db.query(
             `SELECT session_id,
-                    MAX(created_at) AS last_active,
-                    (SELECT content FROM chat_history c2
-                     WHERE c2.session_id = c1.session_id
-                     ORDER BY created_at DESC LIMIT 1) AS last_message
+              MAX(created_at) AS last_active,
+              (SELECT content FROM chat_history c2
+               WHERE c2.session_id = c1.session_id
+               ORDER BY created_at DESC LIMIT 1) AS last_message
              FROM chat_history c1
              GROUP BY session_id
              ORDER BY last_active DESC`,

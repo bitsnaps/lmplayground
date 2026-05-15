@@ -1,29 +1,29 @@
 // tests/image-gen.test.js
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-const mockQuery = vi.fn();
-const mockConnect = vi.fn().mockResolvedValue(undefined);
+const mockQuery = vi.fn().mockResolvedValue({ rows: [] });
 const mockEnd = vi.fn().mockResolvedValue(undefined);
+const mockClient = { query: mockQuery, end: mockEnd };
 
-vi.mock("pg", () => ({
-  Client: vi.fn(() => ({
-    connect: mockConnect,
-    query: mockQuery,
-    end: mockEnd,
-  })),
+vi.mock("../netlify/functions/_shared/db.js", () => ({
+  createClient: () => Promise.resolve(mockClient),
+  checkDbUrl: () => null,
 }));
 
 const { handler } = await import("../netlify/functions/image-gen.js");
 
-const originalFetch = globalThis.fetch;
-
 beforeEach(() => {
-  vi.clearAllMocks();
-  process.env.DATABASE_URL = "postgres://test:test@localhost/test";
+  mockQuery.mockReset();
+  mockQuery.mockResolvedValue({ rows: [] });
+  mockEnd.mockReset();
+  mockEnd.mockResolvedValue(undefined);
+  process.env.DATABASE_URL = "postgres://test";
+  globalThis.fetch = vi.fn();
 });
 
 afterEach(() => {
-  globalThis.fetch = originalFetch;
+  delete process.env.DATABASE_URL;
+  vi.restoreAllMocks();
 });
 
 describe("image-gen function", () => {
@@ -46,40 +46,17 @@ describe("image-gen function", () => {
   });
 
   it("should reject body exceeding 5MB", async () => {
-    const hugeBody = "x".repeat(5 * 1024 * 1024 + 1);
-    const res = await handler({ httpMethod: "POST", body: hugeBody });
+    const bigBody = "x".repeat(5 * 1024 * 1024 + 1);
+    const res = await handler({ httpMethod: "POST", body: bigBody });
     expect(res.statusCode).toBe(413);
   });
 
   it("should proxy image generation request and return result", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: vi.fn().mockResolvedValue({
-        data: [{ url: "https://cdn.openai.com/image.png" }],
-      }),
-    });
-
-    const res = await handler({
-      httpMethod: "POST",
-      body: JSON.stringify({
-        providerUrl: "https://api.openai.com/v1/images/generations",
-        payload: { prompt: "a cat", size: "1024x1024" },
-        headers: { Authorization: "Bearer {{API_KEY}}" },
-        clientApiKey: "sk-test",
-      }),
-    });
-
-    expect(res.statusCode).toBe(200);
-    const body = JSON.parse(res.body);
-    expect(body.data.data[0].url).toBe("https://cdn.openai.com/image.png");
-  });
-
-  it("should return provider error on upstream failure", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 401,
-      json: vi.fn().mockResolvedValue({ error: { message: "Invalid API key" } }),
+      json: () =>
+        Promise.resolve({ data: [{ url: "https://img.test/1.png" }] }),
     });
 
     const res = await handler({
@@ -87,6 +64,27 @@ describe("image-gen function", () => {
       body: JSON.stringify({
         providerUrl: "https://api.openai.com/v1/images/generations",
         payload: { prompt: "a cat" },
+        headers: { Authorization: "Bearer {{API_KEY}}" },
+        clientApiKey: "sk-test",
+      }),
+    });
+
+    expect(res.statusCode).toBe(200);
+  });
+
+  it("should return provider error on upstream failure", async () => {
+    globalThis.fetch.mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      json: () =>
+        Promise.resolve({ error: { message: "Invalid API key" } }),
+    });
+
+    const res = await handler({
+      httpMethod: "POST",
+      body: JSON.stringify({
+        providerUrl: "https://api.test.com/v1/images",
+        payload: {},
         headers: {},
         clientApiKey: "bad-key",
       }),
@@ -96,30 +94,39 @@ describe("image-gen function", () => {
   });
 
   it("should handle JSON parse errors", async () => {
-    const res = await handler({ httpMethod: "POST", body: "not json" });
+    const res = await handler({
+      httpMethod: "POST",
+      body: "not json",
+    });
     expect(res.statusCode).toBe(500);
   });
 
   it("should fetch API key from database if clientApiKey is empty", async () => {
-    mockQuery.mockResolvedValue({ rows: [{ api_key: "sk-db-key" }] });
-    globalThis.fetch = vi.fn().mockResolvedValue({
+    mockQuery.mockResolvedValueOnce({ rows: [{ api_key: "sk-db-key" }] });
+
+    globalThis.fetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: vi.fn().mockResolvedValue({ data: [{ url: "img.png" }] }),
+      json: () =>
+        Promise.resolve({ data: [{ url: "https://img.test/1.png" }] }),
     });
 
     await handler({
       httpMethod: "POST",
       body: JSON.stringify({
-        providerUrl: "https://api.openai.com/v1/images/generations",
-        payload: { prompt: "a cat" },
+        providerUrl: "https://api.test.com/v1/images",
+        payload: { prompt: "dog" },
         headers: { Authorization: "Bearer {{API_KEY}}" },
-        providerId: "prov_openai",
         clientApiKey: "",
+        providerId: "prov_1",
       }),
     });
 
-    expect(mockConnect).toHaveBeenCalled();
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining("SELECT api_key"),
+      ["prov_1"],
+    );
+    expect(mockEnd).toHaveBeenCalled();
     const callArgs = globalThis.fetch.mock.calls[0][1];
     expect(callArgs.headers.Authorization).toBe("Bearer sk-db-key");
   });

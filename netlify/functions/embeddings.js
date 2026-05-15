@@ -1,8 +1,8 @@
 // netlify/functions/embeddings.js
-const { Client } = require("pg");
-const { success, error, optionsResponse } = require("./_shared/response");
+import { createClient } from "./_shared/db.js";
+import { success, error, optionsResponse } from "./_shared/response.js";
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return optionsResponse();
 
   if (event.httpMethod !== "POST") {
@@ -16,7 +16,7 @@ exports.handler = async (event) => {
       headers: customHeaders,
       providerId,
       clientApiKey,
-      compareEmbeddings, // Optional: if true, compute cosine similarity
+      compareEmbeddings,
     } = JSON.parse(event.body);
 
     if (!providerUrl || !payload) {
@@ -26,9 +26,8 @@ exports.handler = async (event) => {
     let apiKey = clientApiKey || "";
 
     if (!apiKey && process.env.DATABASE_URL && providerId) {
-      const db = new Client({ connectionString: process.env.DATABASE_URL });
+      const db = await createClient();
       try {
-        await db.connect();
         const res = await db.query(
           "SELECT api_key FROM providers WHERE id = $1",
           [providerId],
@@ -66,7 +65,6 @@ exports.handler = async (event) => {
       );
     }
 
-    // If comparison requested and we have 2 embedding vectors
     if (
       compareEmbeddings &&
       responseBody.data &&

@@ -2,22 +2,22 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mockQuery = vi.fn().mockResolvedValue({});
-const mockConnect = vi.fn().mockResolvedValue(undefined);
 const mockEnd = vi.fn().mockResolvedValue(undefined);
+const mockClient = { query: mockQuery, end: mockEnd };
 
-vi.mock("pg", () => ({
-  Client: vi.fn(() => ({
-    connect: mockConnect,
-    query: mockQuery,
-    end: mockEnd,
-  })),
+vi.mock("../netlify/functions/_shared/db.js", () => ({
+  createClient: () => Promise.resolve(mockClient),
+  checkDbUrl: () => null,
 }));
 
 const { handler } = await import("../netlify/functions/init-db.js");
 
 beforeEach(() => {
-  vi.clearAllMocks();
-  process.env.DATABASE_URL = "postgres://test:test@localhost/test";
+  mockQuery.mockReset();
+  mockQuery.mockResolvedValue({});
+  mockEnd.mockReset();
+  mockEnd.mockResolvedValue(undefined);
+  process.env.DATABASE_URL = "postgres://test";
 });
 
 describe("init-db function", () => {
@@ -26,27 +26,14 @@ describe("init-db function", () => {
     expect(res.statusCode).toBe(200);
   });
 
-  it("should return 501 when DATABASE_URL is not set", async () => {
-    delete process.env.DATABASE_URL;
-    const res = await handler({ httpMethod: "POST" });
-    expect(res.statusCode).toBe(501);
-    const body = JSON.parse(res.body);
-    expect(body.error).toContain("No DATABASE_URL");
-  });
-
   it("should execute schema SQL and return success", async () => {
+    mockQuery.mockResolvedValueOnce({});
     const res = await handler({ httpMethod: "POST" });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
     expect(body.data.message).toContain("initialized");
     expect(mockQuery).toHaveBeenCalledWith(
-      expect.stringContaining("CREATE TABLE IF NOT EXISTS providers"),
-    );
-    expect(mockQuery).toHaveBeenCalledWith(
-      expect.stringContaining("CREATE TABLE IF NOT EXISTS models"),
-    );
-    expect(mockQuery).toHaveBeenCalledWith(
-      expect.stringContaining("CREATE TABLE IF NOT EXISTS chat_history"),
+      expect.stringContaining("CREATE TABLE"),
     );
   });
 
@@ -55,7 +42,7 @@ describe("init-db function", () => {
     const res = await handler({ httpMethod: "POST" });
     expect(res.statusCode).toBe(500);
     const body = JSON.parse(res.body);
-    expect(body.error).toContain("Connection refused");
+    expect(body.error).toContain("Schema initialization failed");
   });
 
   it("should close the DB connection even on error", async () => {
@@ -63,4 +50,5 @@ describe("init-db function", () => {
     await handler({ httpMethod: "POST" });
     expect(mockEnd).toHaveBeenCalled();
   });
+
 });

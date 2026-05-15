@@ -1,6 +1,6 @@
 // netlify/functions/init-db.js
-const { Client } = require("pg");
-const { success, error, optionsResponse } = require("./_shared/response");
+import { createClient, checkDbUrl } from "./_shared/db.js";
+import { success, error, optionsResponse } from "./_shared/response.js";
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS providers (
@@ -37,17 +37,15 @@ CREATE INDEX IF NOT EXISTS idx_chat_history_session ON chat_history(session_id);
 CREATE INDEX IF NOT EXISTS idx_models_provider ON models(provider_id);
 `;
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return optionsResponse();
 
-  if (!process.env.DATABASE_URL) {
-    return error(501, "No DATABASE_URL configured. Use LocalStorage mode.");
-  }
+  const noDb = checkDbUrl();
+  if (noDb) return noDb;
 
-  const db = new Client({ connectionString: process.env.DATABASE_URL });
+  const db = await createClient();
 
   try {
-    await db.connect();
     await db.query(SCHEMA_SQL);
     return success({ message: "Database schema initialized successfully." });
   } catch (err) {

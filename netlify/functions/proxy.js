@@ -1,15 +1,15 @@
 // netlify/functions/proxy.js
-const { HEADERS } = require("./_shared/cors");
+import { HEADERS } from "./_shared/cors.js";
+import { createClient } from "./_shared/db.js";
 
 const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10MB limit
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 200, headers: HEADERS, body: "OK" };
   }
 
   try {
-    // Size check
     const bodyLength = event.body ? event.body.length : 0;
     if (bodyLength > MAX_BODY_SIZE) {
       return {
@@ -38,12 +38,9 @@ exports.handler = async (event) => {
 
     let apiKey = clientApiKey || "";
 
-    // Fetch API key from PostgreSQL if not provided by client
     if (!apiKey && process.env.DATABASE_URL && providerId) {
-      const { Client } = require("pg");
-      const db = new Client({ connectionString: process.env.DATABASE_URL });
+      const db = await createClient();
       try {
-        await db.connect();
         const res = await db.query(
           "SELECT api_key FROM providers WHERE id = $1",
           [providerId],
@@ -56,7 +53,6 @@ exports.handler = async (event) => {
       }
     }
 
-    // Replace {{API_KEY}} placeholder in each header value
     const finalHeaders = {};
     for (const [key, value] of Object.entries(customHeaders || {})) {
       if (value !== undefined && value !== null) {
@@ -64,12 +60,10 @@ exports.handler = async (event) => {
       }
     }
 
-    // Always ensure Content-Type for the upstream request
     if (!finalHeaders["Content-Type"]) {
       finalHeaders["Content-Type"] = "application/json";
     }
 
-    // Make the upstream API call
     const response = await fetch(providerUrl, {
       method: "POST",
       headers: finalHeaders,
@@ -87,14 +81,12 @@ exports.handler = async (event) => {
       };
     }
 
-    // Check if the response is a stream (SSE)
     const contentType = response.headers.get("content-type") || "";
     const isStream =
       contentType.includes("text/event-stream") ||
       contentType.includes("application/x-ndjson");
 
     if (isStream) {
-      // For streaming responses, relay the raw stream
       const responseBody = await response.text();
       return {
         statusCode: 200,
@@ -102,17 +94,19 @@ exports.handler = async (event) => {
           ...HEADERS,
           "Content-Type": contentType,
           "Cache-Control": "no-cache",
-          Connection: "keep-alive",
+          "Connection": "keep-alive",
         },
         body: responseBody,
       };
     }
 
-    // For non-streaming JSON responses, pass through directly
     const jsonBody = await response.text();
     return {
       statusCode: 200,
-      headers: { ...HEADERS, "Content-Type": contentType || "application/json" },
+      headers: {
+        ...HEADERS,
+        "Content-Type": contentType || "application/json",
+      },
       body: jsonBody,
     };
   } catch (err) {
