@@ -1,18 +1,17 @@
 // netlify/functions/proxy.js
-const { stream } = require("@netlify/functions");
-const { Client } = require("pg");
 const { HEADERS } = require("./_shared/cors");
 
 const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10MB limit
 
-exports.handler = stream(async (event) => {
+exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 200, headers: HEADERS, body: "OK" };
   }
 
   try {
     // Size check
-    if (event.body && event.body.length > MAX_BODY_SIZE) {
+    const bodyLength = event.body ? event.body.length : 0;
+    if (bodyLength > MAX_BODY_SIZE) {
       return {
         statusCode: 413,
         headers: { ...HEADERS, "Content-Type": "application/json" },
@@ -20,13 +19,14 @@ exports.handler = stream(async (event) => {
       };
     }
 
+    const parsed = JSON.parse(event.body || "{}");
     const {
       providerUrl,
       payload,
       headers: customHeaders,
       providerId,
       clientApiKey,
-    } = JSON.parse(event.body);
+    } = parsed;
 
     if (!providerUrl || !payload) {
       return {
@@ -38,8 +38,9 @@ exports.handler = stream(async (event) => {
 
     let apiKey = clientApiKey || "";
 
-    // STORAGE ADAPTER: Fetch API key from PostgreSQL if not provided by client
+    // Fetch API key from PostgreSQL if not provided by client
     if (!apiKey && process.env.DATABASE_URL && providerId) {
+      const { Client } = require("pg");
       const db = new Client({ connectionString: process.env.DATABASE_URL });
       try {
         await db.connect();
@@ -86,17 +87,33 @@ exports.handler = stream(async (event) => {
       };
     }
 
-    // Stream the response back
+    // Check if the response is a stream (SSE)
+    const contentType = response.headers.get("content-type") || "";
+    const isStream =
+      contentType.includes("text/event-stream") ||
+      contentType.includes("application/x-ndjson");
+
+    if (isStream) {
+      // For streaming responses, relay the raw stream
+      const responseBody = await response.text();
+      return {
+        statusCode: 200,
+        headers: {
+          ...HEADERS,
+          "Content-Type": contentType,
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+        },
+        body: responseBody,
+      };
+    }
+
+    // For non-streaming JSON responses, pass through directly
+    const jsonBody = await response.text();
     return {
       statusCode: 200,
-      headers: {
-        ...HEADERS,
-        "Content-Type":
-          response.headers.get("content-type") || "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
-      body: response.body,
+      headers: { ...HEADERS, "Content-Type": contentType || "application/json" },
+      body: jsonBody,
     };
   } catch (err) {
     console.error("Proxy Error:", err);
@@ -106,4 +123,4 @@ exports.handler = stream(async (event) => {
       body: JSON.stringify({ error: err.message }),
     };
   }
-});
+};
