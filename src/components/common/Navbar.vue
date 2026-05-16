@@ -14,19 +14,26 @@
       LMPlayground
     </span>
 
-    <!-- Right side: theme toggle -->
-    <div class="ms-auto d-flex align-items-center gap-2">
-      <button
-        class="btn btn-sm btn-outline-secondary"
-        @click="appState.toggleTheme"
-        :title="appState.theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
-      >
-        <i
-          class="bi"
-          :class="appState.theme === 'dark' ? 'bi-sun' : 'bi-moon'"
-        ></i>
-      </button>
-    </div>
+ <!-- Right side: right sidebar toggle + theme toggle -->
+ <div class="ms-auto d-flex align-items-center gap-2">
+ <button
+ class="btn btn-sm btn-outline-secondary"
+ @click="appState.toggleRightSidebar"
+ :title="appState.rightSidebarCollapsed ? 'Show config panel' : 'Hide config panel'"
+ >
+ <i class="bi" :class="appState.rightSidebarCollapsed ? 'bi-sliders' : 'bi-chevron-right'"></i>
+ </button>
+ <button
+ class="btn btn-sm btn-outline-secondary"
+ @click="appState.toggleTheme"
+ :title="appState.theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+ >
+ <i
+ class="bi"
+ :class="appState.theme === 'dark' ? 'bi-sun' : 'bi-moon'"
+ ></i>
+ </button>
+ </div>
   </nav>
 </template>
 

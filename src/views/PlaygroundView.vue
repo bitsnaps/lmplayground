@@ -1,10 +1,11 @@
 <template>
     <div class="container-fluid h-100 d-flex flex-column px-0">
         <div class="row flex-grow-1 overflow-hidden m-0">
-            <!-- MAIN CHAT AREA -->
-            <div
-                class="col-md-9 d-flex flex-column h-100 p-0 position-relative"
-            >
+ <!-- MAIN CHAT AREA -->
+ <div
+ class="d-flex flex-column h-100 p-0 position-relative"
+ :class="appState.rightSidebarCollapsed ? 'flex-grow-1' : 'col-md-9'"
+ >
                 <!-- Header -->
                 <div
                     class="bg-body-secondary border-bottom p-3 d-flex justify-content-between align-items-center"
@@ -12,20 +13,27 @@
                     <h5 class="m-0">
                         <i class="bi bi-chat-square-dots me-2"></i>Playground
                     </h5>
-                    <div class="d-flex align-items-center gap-2">
-                        <span
-                            v-if="isGenerating"
-                            class="spinner-grow spinner-grow-sm text-primary"
-                            role="status"
-                        ></span>
-                        <button
-                            class="btn btn-outline-danger btn-sm"
-                            @click="clearChat"
-                            :disabled="isGenerating"
-                        >
-                            <i class="bi bi-trash3"></i> Clear
-                        </button>
-                    </div>
+ <div class="d-flex align-items-center gap-2">
+ <button
+ class="btn btn-outline-secondary btn-sm"
+ @click="appState.toggleRightSidebar"
+ :title="appState.rightSidebarCollapsed ? 'Show configuration panel' : 'Hide configuration panel'"
+ >
+ <i class="bi" :class="appState.rightSidebarCollapsed ? 'bi-sliders' : 'bi-chevron-right'"></i>
+ </button>
+ <span
+ v-if="isGenerating"
+ class="spinner-grow spinner-grow-sm text-primary"
+ role="status"
+ ></span>
+ <button
+ class="btn btn-outline-danger btn-sm"
+ @click="clearChat"
+ :disabled="isGenerating"
+ >
+ <i class="bi bi-trash3"></i> Clear
+ </button>
+ </div>
                 </div>
 
                 <!-- Chat History -->
@@ -146,10 +154,11 @@
                 </div>
             </div>
 
-            <!-- RIGHT SIDEBAR (Parameters) -->
-            <div
-                class="col-md-3 bg-body-tertiary border-start p-3 overflow-auto h-100"
-            >
+ <!-- RIGHT SIDEBAR (Parameters) -->
+ <div
+ class="right-sidebar bg-body-tertiary border-start p-3 overflow-auto h-100"
+ :class="{ 'right-sidebar-collapsed': appState.rightSidebarCollapsed }"
+ >
                 <h6 class="mb-3 text-uppercase text-muted small fw-bold">
                     Configuration
                 </h6>
@@ -239,9 +248,11 @@
 import { renderMarkdown } from "../utils/markdown";
 import { ref, onMounted, nextTick } from "vue";
 import { useProvidersStore } from "../store/providers";
+import { useAppStateStore } from "../store/appState";
 import { apiAdapter } from "../services/apiAdapter";
 
 const providersStore = useProvidersStore();
+const appState = useAppStateStore();
 
 // State
 const selectedModelId = ref("");
@@ -353,6 +364,35 @@ const handleFileUpload = (event) => {
 
 <style scoped>
 .resize-none {
-    resize: none;
+ resize: none;
+}
+
+.right-sidebar {
+ width: 25%;
+ min-width: 260px;
+ max-width: 360px;
+ flex-shrink: 0;
+ transition: width 0.3s ease, min-width 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+ overflow: hidden;
+}
+
+.right-sidebar-collapsed {
+ width: 0;
+ min-width: 0;
+ padding: 0;
+ opacity: 0;
+ border: none;
+ overflow: hidden;
+}
+
+.right-sidebar-collapsed > * {
+ visibility: hidden;
+}
+
+@media (max-width: 767.98px) {
+ .right-sidebar {
+  min-width: 100%;
+  max-width: 100%;
+ }
 }
 </style>

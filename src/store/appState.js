@@ -1,10 +1,11 @@
 import { defineStore } from "pinia";
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 
 export const useAppStateStore = defineStore("appState", () => {
   const theme = ref("dark");
   const storageMode = ref("local"); // 'local' or 'postgres'
   const sidebarCollapsed = ref(false);
+  const rightSidebarCollapsed = ref(false);
 
   const toggleTheme = () => {
     theme.value = theme.value === "dark" ? "light" : "dark";
@@ -17,6 +18,11 @@ export const useAppStateStore = defineStore("appState", () => {
     localStorage.setItem("omni_sidebar_collapsed", sidebarCollapsed.value);
   };
 
+  const toggleRightSidebar = () => {
+    rightSidebarCollapsed.value = !rightSidebarCollapsed.value;
+    localStorage.setItem("omni_right_sidebar_collapsed", rightSidebarCollapsed.value);
+  };
+
   const checkStorageMode = () => {
     const savedMode = localStorage.getItem("omni_storage_mode");
     if (savedMode) storageMode.value = savedMode;
@@ -27,6 +33,14 @@ export const useAppStateStore = defineStore("appState", () => {
     localStorage.setItem("omni_storage_mode", mode);
   };
 
+  // Auto-collapse right sidebar on small screens
+  const MOBILE_BREAKPOINT = 768;
+  const handleResize = () => {
+    if (window.innerWidth < MOBILE_BREAKPOINT) {
+      rightSidebarCollapsed.value = true;
+    }
+  };
+
   onMounted(() => {
     const savedTheme = localStorage.getItem("omni_theme");
     if (savedTheme) {
@@ -35,15 +49,29 @@ export const useAppStateStore = defineStore("appState", () => {
     }
     const savedCollapse = localStorage.getItem("omni_sidebar_collapsed");
     if (savedCollapse === "true") sidebarCollapsed.value = true;
+    const savedRightCollapse = localStorage.getItem("omni_right_sidebar_collapsed");
+    if (savedRightCollapse === "true") {
+      rightSidebarCollapsed.value = true;
+    }
     checkStorageMode();
+
+    // Auto-collapse right sidebar on mobile
+    handleResize();
+    window.addEventListener("resize", handleResize);
+  });
+
+  onUnmounted(() => {
+    window.removeEventListener("resize", handleResize);
   });
 
   return {
     theme,
     storageMode,
     sidebarCollapsed,
+    rightSidebarCollapsed,
     toggleTheme,
     toggleSidebar,
+    toggleRightSidebar,
     setStorageMode,
   };
 });
