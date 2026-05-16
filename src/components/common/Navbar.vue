@@ -14,15 +14,16 @@
       LMPlayground
     </span>
 
- <!-- Right side: right sidebar toggle + theme toggle -->
- <div class="ms-auto d-flex align-items-center gap-2">
- <button
- class="btn btn-sm btn-outline-secondary"
- @click="appState.toggleRightSidebar"
- :title="appState.rightSidebarCollapsed ? 'Show config panel' : 'Hide config panel'"
- >
- <i class="bi" :class="appState.rightSidebarCollapsed ? 'bi-sliders' : 'bi-chevron-right'"></i>
- </button>
+    <!-- Right side: right sidebar toggle (only on Playground) + theme toggle -->
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <button
+        v-if="appState.showRightSidebar"
+        class="btn btn-sm btn-outline-secondary"
+        @click="appState.toggleRightSidebar"
+        :title="appState.rightSidebarCollapsed ? 'Show config panel' : 'Hide config panel'"
+      >
+        <i class="bi" :class="appState.rightSidebarCollapsed ? 'bi-sliders' : 'bi-chevron-right'"></i>
+      </button>
  <button
  class="btn btn-sm btn-outline-secondary"
  @click="appState.toggleTheme"

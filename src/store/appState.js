@@ -6,6 +6,7 @@ export const useAppStateStore = defineStore("appState", () => {
   const storageMode = ref("local"); // 'local' or 'postgres'
   const sidebarCollapsed = ref(false);
   const rightSidebarCollapsed = ref(false);
+  const showRightSidebar = ref(false);
 
   const toggleTheme = () => {
     theme.value = theme.value === "dark" ? "light" : "dark";
@@ -57,6 +58,7 @@ export const useAppStateStore = defineStore("appState", () => {
     storageMode,
     sidebarCollapsed,
     rightSidebarCollapsed,
+    showRightSidebar,
     toggleTheme,
     toggleSidebar,
     toggleRightSidebar,
