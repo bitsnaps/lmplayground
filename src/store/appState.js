@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, onMounted } from "vue";
 
 export const useAppStateStore = defineStore("appState", () => {
   const theme = ref("dark");
@@ -33,14 +33,6 @@ export const useAppStateStore = defineStore("appState", () => {
     localStorage.setItem("omni_storage_mode", mode);
   };
 
-  // Auto-collapse right sidebar on small screens
-  const MOBILE_BREAKPOINT = 768;
-  const handleResize = () => {
-    if (window.innerWidth < MOBILE_BREAKPOINT) {
-      rightSidebarCollapsed.value = true;
-    }
-  };
-
   onMounted(() => {
     const savedTheme = localStorage.getItem("omni_theme");
     if (savedTheme) {
@@ -53,15 +45,11 @@ export const useAppStateStore = defineStore("appState", () => {
     if (savedRightCollapse === "true") {
       rightSidebarCollapsed.value = true;
     }
+    // Auto-collapse right sidebar on mobile screens
+    if (window.innerWidth < 768) {
+      rightSidebarCollapsed.value = true;
+    }
     checkStorageMode();
-
-    // Auto-collapse right sidebar on mobile
-    handleResize();
-    window.addEventListener("resize", handleResize);
-  });
-
-  onUnmounted(() => {
-    window.removeEventListener("resize", handleResize);
   });
 
   return {

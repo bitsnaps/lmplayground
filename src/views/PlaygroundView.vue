@@ -14,13 +14,6 @@
                         <i class="bi bi-chat-square-dots me-2"></i>Playground
                     </h5>
  <div class="d-flex align-items-center gap-2">
- <button
- class="btn btn-outline-secondary btn-sm"
- @click="appState.toggleRightSidebar"
- :title="appState.rightSidebarCollapsed ? 'Show configuration panel' : 'Hide configuration panel'"
- >
- <i class="bi" :class="appState.rightSidebarCollapsed ? 'bi-sliders' : 'bi-chevron-right'"></i>
- </button>
  <span
  v-if="isGenerating"
  class="spinner-grow spinner-grow-sm text-primary"
@@ -155,9 +148,19 @@
             </div>
 
  <!-- RIGHT SIDEBAR (Parameters) -->
+ <!-- Mobile backdrop -->
+ <div
+ v-if="!appState.rightSidebarCollapsed && isMobile"
+ class="right-sidebar-backdrop"
+ @click="appState.toggleRightSidebar"
+ ></div>
  <div
  class="right-sidebar bg-body-tertiary border-start p-3 overflow-auto h-100"
- :class="{ 'right-sidebar-collapsed': appState.rightSidebarCollapsed }"
+ :class="{
+ 'right-sidebar-collapsed': appState.rightSidebarCollapsed,
+ 'right-sidebar-mobile': isMobile,
+ 'right-sidebar-mobile-open': isMobile && !appState.rightSidebarCollapsed
+ }"
  >
                 <h6 class="mb-3 text-uppercase text-muted small fw-bold">
                     Configuration
@@ -246,13 +249,22 @@
 
 <script setup>
 import { renderMarkdown } from "../utils/markdown";
-import { ref, onMounted, nextTick } from "vue";
+import { ref, computed, onMounted, onUnmounted, nextTick } from "vue";
 import { useProvidersStore } from "../store/providers";
 import { useAppStateStore } from "../store/appState";
 import { apiAdapter } from "../services/apiAdapter";
 
 const providersStore = useProvidersStore();
 const appState = useAppStateStore();
+
+// Reactive mobile detection
+const MOBILE_BREAKPOINT = 768;
+const windowWidth = ref(window.innerWidth);
+const isMobile = computed(() => windowWidth.value < MOBILE_BREAKPOINT);
+
+const onResize = () => {
+ windowWidth.value = window.innerWidth;
+};
 
 // State
 const selectedModelId = ref("");
@@ -270,14 +282,19 @@ const params = ref({
 
 // Initialization
 onMounted(async () => {
-    if (!providersStore.isLoaded) {
-        await providersStore.initializeData();
-    }
-    // Auto-select first available text model if none selected
-    const textModels = providersStore.models.filter((m) => m.type === "text");
-    if (textModels.length > 0) {
-        selectedModelId.value = textModels[0].id;
-    }
+ if (!providersStore.isLoaded) {
+ await providersStore.initializeData();
+ }
+ // Auto-select first available text model if none selected
+ const textModels = providersStore.models.filter((m) => m.type === "text");
+ if (textModels.length > 0) {
+ selectedModelId.value = textModels[0].id;
+ }
+ window.addEventListener("resize", onResize);
+});
+
+onUnmounted(() => {
+ window.removeEventListener("resize", onResize);
 });
 
 // Helpers
@@ -389,10 +406,33 @@ const handleFileUpload = (event) => {
  visibility: hidden;
 }
 
-@media (max-width: 767.98px) {
- .right-sidebar {
-  min-width: 100%;
-  max-width: 100%;
- }
+/* Mobile: sidebar becomes a fixed overlay panel */
+.right-sidebar-mobile {
+ position: fixed;
+ top: 0;
+ right: 0;
+ bottom: 0;
+ width: 85%;
+ max-width: 320px;
+ min-width: 0;
+ z-index: 1050;
+ transform: translateX(100%);
+ transition: transform 0.3s ease;
+ box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.right-sidebar-mobile-open {
+ transform: translateX(0);
+}
+
+/* Backdrop behind mobile sidebar */
+.right-sidebar-backdrop {
+ position: fixed;
+ top: 0;
+ left: 0;
+ right: 0;
+ bottom: 0;
+ background: rgba(0, 0, 0, 0.5);
+ z-index: 1049;
 }
 </style>
