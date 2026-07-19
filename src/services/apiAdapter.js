@@ -59,17 +59,10 @@ export const apiAdapter = {
       };
     }
 
-    // Build auth headers based on provider config
+    // Build auth headers — send raw API key, let proxy construct Authorization
     const requestHeaders = { "Content-Type": "application/json" };
     if (provider.auth_header) {
-      if (
-        provider.auth_header.includes("x-api-key") ||
-        provider.auth_header.includes("anthropic")
-      ) {
-        requestHeaders["x-api-key"] = provider.auth_header;
-      } else {
-        requestHeaders["Authorization"] = provider.auth_header;
-      }
+      requestHeaders["x-auth-format"] = provider.auth_header;
     }
     if (isAnthropic) {
       requestHeaders["anthropic-version"] = "2023-06-01";
@@ -147,7 +140,7 @@ export const apiAdapter = {
 
     const requestHeaders = { "Content-Type": "application/json" };
     if (provider.auth_header) {
-      requestHeaders["Authorization"] = provider.auth_header;
+      requestHeaders["x-auth-format"] = provider.auth_header;
     }
 
     const payload = {
@@ -193,7 +186,7 @@ export const apiAdapter = {
 
     const requestHeaders = { "Content-Type": "application/json" };
     if (provider.auth_header) {
-      requestHeaders["Authorization"] = provider.auth_header;
+      requestHeaders["x-auth-format"] = provider.auth_header;
     }
 
     const payload = {

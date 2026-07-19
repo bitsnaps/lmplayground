@@ -114,8 +114,15 @@ export const handler = async (event) => {
 
     const finalHeaders = {};
     for (const [key, value] of Object.entries(customHeaders || {})) {
-      if (value !== undefined && value !== null) {
-        finalHeaders[key] = String(value).replace("{{API_KEY}}", apiKey);
+      if (key === "x-auth-format" && value) {
+        const authValue = String(value).replace("{{API_KEY}}", apiKey);
+        if (authValue.startsWith("Bearer ")) {
+          finalHeaders["Authorization"] = authValue;
+        } else {
+          finalHeaders["x-api-key"] = authValue;
+        }
+      } else if (value !== undefined && value !== null) {
+        finalHeaders[key] = String(value);
       }
     }
 

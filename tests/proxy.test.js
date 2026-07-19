@@ -69,7 +69,7 @@ describe("proxy function", () => {
       body: JSON.stringify({
         providerUrl: "https://api.openai.com/v1/chat/completions",
         payload: { model: "gpt-4", messages: [] },
-        headers: { Authorization: "Bearer {{API_KEY}}" },
+        headers: { "x-auth-format": "Bearer {{API_KEY}}" },
         clientApiKey: "sk-test-key",
       }),
     });
@@ -94,7 +94,7 @@ describe("proxy function", () => {
       body: JSON.stringify({
         providerUrl: "https://api.test.com/v1",
         payload: {},
-        headers: { Authorization: "Bearer {{API_KEY}}" },
+        headers: { "x-auth-format": "Bearer {{API_KEY}}" },
         clientApiKey: "sk-my-key",
       }),
     });
@@ -118,7 +118,7 @@ describe("proxy function", () => {
       body: JSON.stringify({
         providerUrl: "https://api.test.com/v1",
         payload: {},
-        headers: { Authorization: "Bearer {{API_KEY}}" },
+        headers: { "x-auth-format": "Bearer {{API_KEY}}" },
         clientApiKey: "",
         providerId: "prov_1",
       }),
