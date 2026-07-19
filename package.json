@@ -14,7 +14,6 @@
     "@netlify/functions": "^5.2.1",
     "dompurify": "^3.4.3",
     "highlight.js": "^11.11.1",
-    "lmplayground": "link:",
     "marked": "^18.0.3",
     "marked-highlight": "^2.2.4",
     "pg": "^8.20.0",
