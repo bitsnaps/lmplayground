@@ -275,6 +275,7 @@
                                             v-model="newModel.provider_id"
                                             class="form-select form-select-sm"
                                             required
+                                            @change="fetchProviderModels($event.target.value)"
                                         >
                                             <option
                                                 v-for="prov in store.providers"
@@ -387,8 +388,11 @@ const fetchProviderModels = async (providerId) => {
     fetchedModels.value = [];
     isLoadingModels.value = true;
     try {
+        console.log("[fetchProviderModels] Fetching models for:", provider.name, provider.base_url);
         fetchedModels.value = await apiAdapter.fetchModels(provider);
-    } catch {
+        console.log("[fetchProviderModels] Got models:", fetchedModels.value.length);
+    } catch (e) {
+        console.error("[fetchProviderModels] Error:", e);
         fetchedModels.value = [];
     } finally {
         isLoadingModels.value = false;
@@ -513,8 +517,7 @@ const saveModel = async (id) => {
     cancelEditModel();
 };
 
-// Auto-fetch models when provider is selected in Add form
-watch(() => newModel.value.provider_id, (id) => { if (id) fetchProviderModels(id); });
+// (Models fetched via @change on provider select — see template)
 </script>
 
 <style scoped>

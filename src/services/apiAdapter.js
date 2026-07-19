@@ -370,6 +370,7 @@ export const apiAdapter = {
       if (provider.auth_header) {
         requestHeaders["x-auth-format"] = provider.auth_header;
       }
+      console.log("[apiAdapter.fetchModels] Calling proxy for:", provider.base_url);
       const response = await fetch(`${API_BASE}/proxy`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -381,13 +382,20 @@ export const apiAdapter = {
           clientApiKey: apiKey,
         }),
       });
-      if (!response.ok) return [];
+      console.log("[apiAdapter.fetchModels] Response status:", response.status);
+      if (!response.ok) {
+        const errBody = await response.text();
+        console.error("[apiAdapter.fetchModels] Error response:", errBody);
+        return [];
+      }
       const data = await response.json();
+      console.log("[apiAdapter.fetchModels] Data:", data);
       if (Array.isArray(data.data)) {
         return data.data.map((m) => m.id).filter(Boolean);
       }
       return [];
-    } catch {
+    } catch (e) {
+      console.error("[apiAdapter.fetchModels] Exception:", e);
       return [];
     }
   },
