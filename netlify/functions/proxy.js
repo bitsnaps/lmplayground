@@ -114,7 +114,7 @@ export const handler = async (event) => {
           finalHeaders[key] = String(value);
         }
       }
-      const modelsUrl = providerUrl.replace(/\/+$/, "") + "/v1/models";
+      const modelsUrl = providerUrl.replace(/\/+$/, "") + "/models";
       const resp = await fetch(modelsUrl, { headers: finalHeaders });
       const data = await resp.json();
       return {
