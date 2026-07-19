@@ -89,20 +89,44 @@
                             <div
                                 v-for="prov in store.providers"
                                 :key="prov.id"
-                                class="list-group-item d-flex justify-content-between align-items-center p-3"
+                                class="list-group-item p-3"
                             >
-                                <div>
-                                    <h6 class="mb-1">{{ prov.name }}</h6>
-                                    <small class="text-muted text-break">{{
-                                        prov.base_url
-                                    }}</small>
+                                <!-- View Mode -->
+                                <div v-if="editingProviderId !== prov.id" class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">{{ prov.name }}</h6>
+                                        <small class="text-muted text-break">{{ prov.base_url }}</small>
+                                    </div>
+                                    <div class="d-flex gap-1">
+                                        <button @click="startEditProvider(prov)" class="btn btn-outline-secondary btn-sm" title="Edit">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button @click="store.deleteProvider(prov.id)" class="btn btn-outline-danger btn-sm" title="Delete">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
                                 </div>
-                                <button
-                                    @click="store.deleteProvider(prov.id)"
-                                    class="btn btn-outline-danger btn-sm"
-                                >
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                                <!-- Edit Mode -->
+                                <div v-else>
+                                    <form @submit.prevent="saveProvider(prov.id)">
+                                        <div class="mb-2">
+                                            <label class="form-label small">Provider Name</label>
+                                            <input type="text" v-model="editProvider.name" class="form-control form-control-sm" required />
+                                        </div>
+                                        <div class="mb-2">
+                                            <label class="form-label small">Base URL</label>
+                                            <input type="url" v-model="editProvider.base_url" class="form-control form-control-sm" required />
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label small">Auth Header Format</label>
+                                            <input type="text" v-model="editProvider.auth_header" class="form-control form-control-sm" placeholder="e.g. Bearer {{API_KEY}}" />
+                                        </div>
+                                        <div class="d-flex gap-2">
+                                            <button type="submit" class="btn btn-primary btn-sm">Save</button>
+                                            <button type="button" @click="cancelEditProvider" class="btn btn-secondary btn-sm">Cancel</button>
+                                        </div>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -175,33 +199,57 @@
                                 :key="mod.id"
                                 class="list-group-item p-3"
                             >
-                                <div
-                                    class="d-flex justify-content-between align-items-start"
-                                >
+                                <!-- View Mode -->
+                                <div v-if="editingModelId !== mod.id" class="d-flex justify-content-between align-items-start">
                                     <div>
                                         <h6 class="mb-1">
                                             {{ mod.name }}
-                                            <span
-                                                class="badge bg-secondary ms-2"
-                                                >{{ mod.type }}</span
-                                            >
-                                            <i
-                                                v-if="mod.supports_vision"
-                                                class="bi bi-eye ms-2 text-info"
-                                                title="Supports Vision"
-                                            ></i>
+                                            <span class="badge bg-secondary ms-2">{{ mod.type }}</span>
+                                            <i v-if="mod.supports_vision" class="bi bi-eye ms-2 text-info" title="Supports Vision"></i>
                                         </h6>
-                                        <small
-                                            class="text-muted font-monospace"
-                                            >{{ mod.api_model_id }}</small
-                                        >
+                                        <small class="text-muted font-monospace">{{ mod.api_model_id }}</small>
                                     </div>
-                                    <button
-                                        @click="store.deleteModel(mod.id)"
-                                        class="btn btn-outline-danger btn-sm"
-                                    >
-                                        <i class="bi bi-trash"></i>
-                                    </button>
+                                    <div class="d-flex gap-1">
+                                        <button @click="startEditModel(mod)" class="btn btn-outline-secondary btn-sm" title="Edit">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button @click="store.deleteModel(mod.id)" class="btn btn-outline-danger btn-sm" title="Delete">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <!-- Edit Mode -->
+                                <div v-else>
+                                    <form @submit.prevent="saveModel(mod.id)">
+                                        <div class="mb-2">
+                                            <label class="form-label small">Display Name</label>
+                                            <input type="text" v-model="editModel.name" class="form-control form-control-sm" required />
+                                        </div>
+                                        <div class="mb-2">
+                                            <label class="form-label small">API Model ID</label>
+                                            <input type="text" v-model="editModel.api_model_id" class="form-control form-control-sm" required />
+                                        </div>
+                                        <div class="mb-2">
+                                            <label class="form-label small">Capability Type</label>
+                                            <select v-model="editModel.type" class="form-select form-select-sm">
+                                                <option value="text">Text Generation</option>
+                                                <option value="image">Image Generation</option>
+                                                <option value="embedding">Embeddings</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-2 form-check">
+                                            <input type="checkbox" v-model="editModel.supports_vision" class="form-check-input" :id="'edit-vision-' + mod.id" />
+                                            <label class="form-check-label small" :for="'edit-vision-' + mod.id">Supports Vision (Images)</label>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label small">Context Window</label>
+                                            <input type="number" v-model="editModel.context_window" class="form-control form-control-sm" />
+                                        </div>
+                                        <div class="d-flex gap-2">
+                                            <button type="submit" class="btn btn-primary btn-sm">Save</button>
+                                            <button type="button" @click="cancelEditModel" class="btn btn-secondary btn-sm">Cancel</button>
+                                        </div>
+                                    </form>
                                 </div>
                             </div>
                         </div>
@@ -355,6 +403,25 @@ const submitProvider = () => {
     };
 };
 
+// Provider edit state
+const editingProviderId = ref(null);
+const editProvider = ref({ name: "", base_url: "", auth_header: "" });
+
+const startEditProvider = (prov) => {
+    editingProviderId.value = prov.id;
+    editProvider.value = { name: prov.name, base_url: prov.base_url, auth_header: prov.auth_header };
+};
+
+const cancelEditProvider = () => {
+    editingProviderId.value = null;
+    editProvider.value = { name: "", base_url: "", auth_header: "" };
+};
+
+const saveProvider = async (id) => {
+    await store.updateProvider(id, { ...editProvider.value });
+    cancelEditProvider();
+};
+
 // Local form state for Models
 const newModel = ref({
     provider_id: "",
@@ -375,6 +442,25 @@ const submitModel = () => {
         supports_vision: false,
         context_window: 8192,
     };
+};
+
+// Model edit state
+const editingModelId = ref(null);
+const editModel = ref({ name: "", api_model_id: "", type: "text", supports_vision: false, context_window: 8192 });
+
+const startEditModel = (mod) => {
+    editingModelId.value = mod.id;
+    editModel.value = { name: mod.name, api_model_id: mod.api_model_id, type: mod.type, supports_vision: mod.supports_vision, context_window: mod.context_window };
+};
+
+const cancelEditModel = () => {
+    editingModelId.value = null;
+    editModel.value = { name: "", api_model_id: "", type: "text", supports_vision: false, context_window: 8192 };
+};
+
+const saveModel = async (id) => {
+    await store.updateModel(id, { ...editModel.value });
+    cancelEditModel();
 };
 </script>
 
