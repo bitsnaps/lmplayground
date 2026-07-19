@@ -357,4 +357,37 @@ export const apiAdapter = {
       onError(error.message);
     }
   },
+
+  /**
+   * Fetch available models from a provider's /v1/models endpoint.
+   * Returns array of model id strings, or empty array on failure.
+   */
+  async fetchModels(provider) {
+    try {
+      const apiKey = storageService.getApiKey(provider.id) || "";
+      const requestHeaders = { "Content-Type": "application/json" };
+      if (provider.auth_header) {
+        requestHeaders["x-auth-format"] = provider.auth_header;
+      }
+      const response = await fetch(`${API_BASE}/proxy`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          providerUrl: provider.base_url,
+          providerId: provider.id,
+          headers: requestHeaders,
+          action: "listModels",
+          clientApiKey: apiKey,
+        }),
+      });
+      if (!response.ok) return [];
+      const data = await response.json();
+      if (Array.isArray(data.data)) {
+        return data.data.map((m) => m.id).filter(Boolean);
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  },
 };

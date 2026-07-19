@@ -76,7 +76,53 @@ export const handler = async (event) => {
       headers: customHeaders,
       providerId,
       clientApiKey,
+      action,
     } = parsed;
+
+    // Handle listModels action — fetch /v1/models from provider
+    if (action === "listModels") {
+      if (!providerUrl) {
+        return {
+          statusCode: 400,
+          headers: { ...HEADERS, "Content-Type": "application/json" },
+          body: JSON.stringify({ error: "Missing providerUrl." }),
+        };
+      }
+      const urlCheck = validateProviderUrl(providerUrl);
+      if (!urlCheck.ok) {
+        return {
+          statusCode: 400,
+          headers: { ...HEADERS, "Content-Type": "application/json" },
+          body: JSON.stringify({ error: urlCheck.error }),
+        };
+      }
+      let apiKey = clientApiKey || "";
+      if (!apiKey && process.env.DATABASE_URL && providerId) {
+        const db = await createClient();
+        try {
+          const res = await db.query("SELECT api_key FROM providers WHERE id = $1", [providerId]);
+          if (res.rows.length > 0 && res.rows[0].api_key) apiKey = res.rows[0].api_key;
+        } finally { await db.end(); }
+      }
+      const finalHeaders = {};
+      for (const [key, value] of Object.entries(customHeaders || {})) {
+        if (key === "x-auth-format" && value) {
+          const authValue = String(value).replace("{{API_KEY}}", apiKey);
+          if (authValue.startsWith("Bearer ")) finalHeaders["Authorization"] = authValue;
+          else finalHeaders["x-api-key"] = authValue;
+        } else if (value !== undefined && value !== null) {
+          finalHeaders[key] = String(value);
+        }
+      }
+      const modelsUrl = providerUrl.replace(/\/+$/, "") + "/v1/models";
+      const resp = await fetch(modelsUrl, { headers: finalHeaders });
+      const data = await resp.json();
+      return {
+        statusCode: resp.status,
+        headers: { ...HEADERS, "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      };
+    }
 
     if (!providerUrl || !payload) {
       return {

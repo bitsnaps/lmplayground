@@ -229,10 +229,11 @@
                                             <label class="form-label small">API Model ID</label>
                                             <AutocompleteInput
                                                 v-model="editModel.api_model_id"
-                                                :options="knownModelNames"
+                                                :options="modelSuggestions"
                                                 placeholder="e.g. gpt-4-turbo"
                                                 input-class="form-control-sm"
-                                                @update:modelValue="onEditModelIdChange"
+                                                @select="onEditModelSelect"
+                                                @blur="onEditModelBlur"
                                             />
                                         </div>
                                         <div class="mb-2">
@@ -301,10 +302,11 @@
                                         >
                                         <AutocompleteInput
                                             v-model="newModel.api_model_id"
-                                            :options="knownModelNames"
+                                            :options="modelSuggestions"
                                             placeholder="e.g. gpt-4-turbo"
                                             input-class="form-control-sm"
-                                            @update:modelValue="onNewModelIdChange"
+                                            @select="onNewModelSelect"
+                                            @blur="onNewModelBlur"
                                         />
                                     </div>
                                     <div class="mb-2">
@@ -367,12 +369,36 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted, watch } from "vue";
 import { useProvidersStore } from "../store/providers";
 import { knownModelNames } from "../utils/knownModels.js";
 import AutocompleteInput from "../components/common/AutocompleteInput.vue";
+import { apiAdapter } from "../services/apiAdapter.js";
 
 const store = useProvidersStore();
+
+// Fetch models from provider API
+const fetchedModels = ref([]);
+const isLoadingModels = ref(false);
+
+const fetchProviderModels = async (providerId) => {
+    const provider = store.providers.find((p) => p.id === providerId);
+    if (!provider) return;
+    isLoadingModels.value = true;
+    fetchedModels.value = await apiAdapter.fetchModels(provider);
+    isLoadingModels.value = false;
+};
+
+// Merge known + fetched models for autocomplete
+const modelSuggestions = ref(knownModelNames);
+watch(fetchedModels, (list) => {
+    const merged = new Set([...knownModelNames, ...list]);
+    modelSuggestions.value = [...merged].sort();
+});
+
+// Auto-fetch when provider changes
+watch(() => newModel.value.provider_id, (id) => { if (id) fetchProviderModels(id); });
+watch(() => editModel.value.provider_id, (id) => { if (id) fetchProviderModels(id); });
 
 // Initialize Data if not loaded
 onMounted(() => {
@@ -451,18 +477,17 @@ const submitModel = () => {
     };
 };
 
-// Auto-fill Display Name from API Model ID
-const onNewModelIdChange = (val) => {
-    if (!newModel.value.name) {
-        newModel.value.name = val.toUpperCase().replace(/-/g, " ");
+// Auto-fill Display Name from API Model ID (only on selection or blur)
+const autoFillDisplayName = (target, val) => {
+    if (!target.name && val) {
+        target.name = val.toUpperCase().replace(/-/g, " ");
     }
 };
 
-const onEditModelIdChange = (val) => {
-    if (!editModel.value.name) {
-        editModel.value.name = val.toUpperCase().replace(/-/g, " ");
-    }
-};
+const onNewModelSelect = (val) => autoFillDisplayName(newModel.value, val);
+const onNewModelBlur = () => autoFillDisplayName(newModel.value, newModel.value.api_model_id);
+const onEditModelSelect = (val) => autoFillDisplayName(editModel.value, val);
+const onEditModelBlur = () => autoFillDisplayName(editModel.value, editModel.value.api_model_id);
 
 // Model edit state
 const editingModelId = ref(null);

@@ -43,7 +43,7 @@ const props = defineProps({
     minChars: { type: Number, default: 1 },
 });
 
-const emit = defineEmits(["update:modelValue"]);
+const emit = defineEmits(["update:modelValue", "select", "blur"]);
 
 const showDropdown = ref(false);
 const selectedIndex = ref(-1);
@@ -70,6 +70,7 @@ const onBlur = () => {
     setTimeout(() => {
         showDropdown.value = false;
     }, 150);
+    emit("blur");
 };
 
 const moveSelection = (dir) => {
@@ -86,6 +87,7 @@ const selectCurrent = () => {
 
 const selectOption = (option) => {
     emit("update:modelValue", option);
+    emit("select", option);
     showDropdown.value = false;
     selectedIndex.value = -1;
 };
