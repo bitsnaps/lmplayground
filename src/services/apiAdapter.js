@@ -1,5 +1,6 @@
 // src/services/apiAdapter.js
 import { useProvidersStore } from "../store/providers";
+import { storageService } from "./storageService.js";
 
 const API_BASE = "/api";
 
