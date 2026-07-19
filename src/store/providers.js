@@ -55,7 +55,6 @@ export const useProvidersStore = defineStore("providers", () => {
   const deleteModel = async (id) => {
     models.value = models.value.filter((m) => m.id !== id);
     await storageService.saveData("models", models.value);
-    await storageService.deleteRecord("models", id);
   };
 
   const updateProvider = async (id, updates) => {
@@ -63,7 +62,6 @@ export const useProvidersStore = defineStore("providers", () => {
     if (index !== -1) {
       providers.value[index] = { ...providers.value[index], ...updates };
       await storageService.saveData("providers", providers.value);
-      await storageService.updateRecord("providers", id, updates);
     }
   };
 
@@ -72,7 +70,6 @@ export const useProvidersStore = defineStore("providers", () => {
     if (index !== -1) {
       models.value[index] = { ...models.value[index], ...updates };
       await storageService.saveData("models", models.value);
-      await storageService.updateRecord("models", id, updates);
     }
   };
 

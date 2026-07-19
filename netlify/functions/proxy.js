@@ -4,13 +4,63 @@ import { createClient } from "./_shared/db.js";
 
 const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10MB limit
 
+/**
+ * Validate that a URL is safe to fetch (SSRF protection).
+ * Only allows https, blocks private/internal IPs and metadata endpoints.
+ */
+function validateProviderUrl(urlString) {
+  let parsed;
+  try {
+    parsed = new URL(urlString);
+  } catch {
+    return { ok: false, error: "Invalid URL format." };
+  }
+
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+    return { ok: false, error: "Only http and https URLs are allowed." };
+  }
+
+  const hostname = parsed.hostname;
+
+  // Block localhost variants
+  if (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname === "[::1]"
+  ) {
+    return { ok: false, error: "Loopback addresses are not allowed." };
+  }
+
+  // Block metadata endpoints
+  if (hostname === "169.254.169.254") {
+    return { ok: false, error: "Cloud metadata endpoints are not allowed." };
+  }
+
+  // Block private IPv4 ranges
+  const ipv4Match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4Match) {
+    const [, a, b] = ipv4Match.map(Number);
+    // 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+    if (
+      a === 10 ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168)
+    ) {
+      return { ok: false, error: "Private network addresses are not allowed." };
+    }
+  }
+
+  return { ok: true };
+}
+
 export const handler = async (event) => {
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 200, headers: HEADERS, body: "OK" };
   }
 
   try {
-    const bodyLength = event.body ? event.body.length : 0;
+    const bodyLength = event.body ? Buffer.byteLength(event.body, "utf8") : 0;
     if (bodyLength > MAX_BODY_SIZE) {
       return {
         statusCode: 413,
@@ -33,6 +83,15 @@ export const handler = async (event) => {
         statusCode: 400,
         headers: { ...HEADERS, "Content-Type": "application/json" },
         body: JSON.stringify({ error: "Missing providerUrl or payload." }),
+      };
+    }
+
+    const urlCheck = validateProviderUrl(providerUrl);
+    if (!urlCheck.ok) {
+      return {
+        statusCode: 400,
+        headers: { ...HEADERS, "Content-Type": "application/json" },
+        body: JSON.stringify({ error: urlCheck.error }),
       };
     }
 

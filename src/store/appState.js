@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref, onMounted } from "vue";
+import { ref } from "vue";
 
 export const useAppStateStore = defineStore("appState", () => {
   const theme = ref("dark");
@@ -24,17 +24,12 @@ export const useAppStateStore = defineStore("appState", () => {
     localStorage.setItem("omni_right_sidebar_collapsed", rightSidebarCollapsed.value);
   };
 
-  const checkStorageMode = () => {
-    const savedMode = localStorage.getItem("omni_storage_mode");
-    if (savedMode) storageMode.value = savedMode;
-  };
-
   const setStorageMode = (mode) => {
     storageMode.value = mode;
     localStorage.setItem("omni_storage_mode", mode);
   };
 
-  onMounted(() => {
+  function init() {
     const savedTheme = localStorage.getItem("omni_theme");
     if (savedTheme) {
       theme.value = savedTheme;
@@ -47,11 +42,12 @@ export const useAppStateStore = defineStore("appState", () => {
       rightSidebarCollapsed.value = true;
     }
     // Auto-collapse right sidebar on mobile screens
-    if (window.innerWidth < 768) {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
       rightSidebarCollapsed.value = true;
     }
-    checkStorageMode();
-  });
+    const savedMode = localStorage.getItem("omni_storage_mode");
+    if (savedMode) storageMode.value = savedMode;
+  }
 
   return {
     theme,
@@ -63,5 +59,6 @@ export const useAppStateStore = defineStore("appState", () => {
     toggleSidebar,
     toggleRightSidebar,
     setStorageMode,
+    init,
   };
 });

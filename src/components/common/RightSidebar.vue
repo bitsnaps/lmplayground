@@ -1,11 +1,6 @@
 <template>
-  <!-- Mobile backdrop (only when sidebar is open on mobile) -->
-  <div
-    v-if="!appState.rightSidebarCollapsed && isMobile"
-    class="right-sidebar-backdrop"
-    @click="appState.toggleRightSidebar"
-  ></div>
   <aside
+    v-show="appState.showRightSidebar"
     class="right-sidebar bg-body-tertiary border-start p-3 overflow-auto h-100"
     :class="{
       'right-sidebar-collapsed': appState.rightSidebarCollapsed,
@@ -13,6 +8,12 @@
       'right-sidebar-mobile-open': isMobile && !appState.rightSidebarCollapsed
     }"
   >
+    <!-- Mobile backdrop (only when sidebar is open on mobile) -->
+    <div
+      v-if="isMobile && !appState.rightSidebarCollapsed"
+      class="right-sidebar-backdrop"
+      @click="appState.toggleRightSidebar"
+    ></div>
     <!-- Content is teleported here from views via #right-sidebar-target -->
     <div id="right-sidebar-target"></div>
     <slot></slot>

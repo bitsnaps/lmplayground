@@ -314,7 +314,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import { useProvidersStore } from "../store/providers";
 
 const store = useProvidersStore();
@@ -334,6 +334,10 @@ const updateApiKey = (providerId, value) => {
         store.setApiKey(providerId, value);
     }, 500);
 };
+
+onUnmounted(() => {
+    clearTimeout(timeout);
+});
 
 // Local form state for Providers
 const newProvider = ref({

@@ -20,19 +20,24 @@
         </main>
 
         <!-- Right Sidebar — content teleported here from views -->
-        <RightSidebar v-show="appState.showRightSidebar" />
+        <RightSidebar />
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
+import { onMounted } from "vue";
 import Sidebar from "./components/common/Sidebar.vue";
 import Navbar from "./components/common/Navbar.vue";
 import RightSidebar from "./components/common/RightSidebar.vue";
 import { useAppStateStore } from "./store/appState";
 
 const appState = useAppStateStore();
+
+onMounted(() => {
+  appState.init();
+});
 </script>
 
 <style scoped>

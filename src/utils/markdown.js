@@ -1,18 +1,62 @@
 import { marked } from "marked";
-import hljs from "highlight.js";
+import { markedHighlight } from "marked-highlight";
+import hljs from "highlight.js/lib/core";
 import DOMPurify from "dompurify";
+
+// Register only common languages to reduce bundle size
+import javascript from "highlight.js/lib/languages/javascript";
+import typescript from "highlight.js/lib/languages/typescript";
+import python from "highlight.js/lib/languages/python";
+import json from "highlight.js/lib/languages/json";
+import css from "highlight.js/lib/languages/css";
+import xml from "highlight.js/lib/languages/xml";
+import bash from "highlight.js/lib/languages/bash";
+import sql from "highlight.js/lib/languages/sql";
+import markdown from "highlight.js/lib/languages/markdown";
+import yaml from "highlight.js/lib/languages/yaml";
+import dockerfile from "highlight.js/lib/languages/dockerfile";
+import php from "highlight.js/lib/languages/php";
+import java from "highlight.js/lib/languages/java";
+import go from "highlight.js/lib/languages/go";
+import rust from "highlight.js/lib/languages/rust";
+import cpp from "highlight.js/lib/languages/cpp";
+import csharp from "highlight.js/lib/languages/csharp";
+
+hljs.registerLanguage("javascript", javascript);
+hljs.registerLanguage("typescript", typescript);
+hljs.registerLanguage("python", python);
+hljs.registerLanguage("json", json);
+hljs.registerLanguage("css", css);
+hljs.registerLanguage("xml", xml);
+hljs.registerLanguage("bash", bash);
+hljs.registerLanguage("sql", sql);
+hljs.registerLanguage("markdown", markdown);
+hljs.registerLanguage("yaml", yaml);
+hljs.registerLanguage("dockerfile", dockerfile);
+hljs.registerLanguage("php", php);
+hljs.registerLanguage("java", java);
+hljs.registerLanguage("go", go);
+hljs.registerLanguage("rust", rust);
+hljs.registerLanguage("cpp", cpp);
+hljs.registerLanguage("csharp", csharp);
 
 // Import a highlight.js theme (GitHub Dark is great for modern UIs)
 import "highlight.js/styles/github-dark.css";
 
-// Configure Marked to use Highlight.js for code blocks
-marked.setOptions({
+// Configure Marked with highlight.js via markedHighlight extension
+marked.use(
+  markedHighlight({
+    langPrefix: "hljs language-",
+    highlight(code, lang) {
+      const language = hljs.getLanguage(lang) ? lang : "plaintext";
+      return hljs.highlight(code, { language }).value;
+    },
+  }),
+);
+
+marked.use({
   breaks: true, // Converts standard \n to <br> for conversational text
   gfm: true, // GitHub Flavored Markdown (tables, task lists)
-  highlight: function (code, lang) {
-    const language = hljs.getLanguage(lang) ? lang : "plaintext";
-    return hljs.highlight(code, { language }).value;
-  },
 });
 
 export const renderMarkdown = (text) => {

@@ -140,7 +140,6 @@
         />
       </div>
     </div>
-  </div>
 
   <!-- Teleport right sidebar content to the App-level right sidebar -->
   <Teleport to="#right-sidebar-target">
@@ -223,21 +222,26 @@
       />
     </div>
   </Teleport>
+  </div>
 </template>
 
 <script setup>
 import { renderMarkdown } from "../utils/markdown";
-import { ref, onMounted, onUnmounted, nextTick } from "vue";
+import { ref, onMounted, onUnmounted, nextTick, computed } from "vue";
 import { useProvidersStore } from "../store/providers";
 import { useAppStateStore } from "../store/appState";
+import { useChatStore } from "../store/chat";
 import { apiAdapter } from "../services/apiAdapter";
+import { storageService } from "../services/storageService";
 
 const providersStore = useProvidersStore();
 const appState = useAppStateStore();
+const chatStore = useChatStore();
 
 // Tell App.vue to show the right sidebar for this view
 onMounted(() => {
   appState.showRightSidebar = true;
+  chatStore.startSession();
 });
 onUnmounted(() => {
   appState.showRightSidebar = false;
@@ -246,10 +250,10 @@ onUnmounted(() => {
 // State
 const selectedModelId = ref("");
 const currentInput = ref("");
-const messages = ref([]);
 const isGenerating = ref(false);
 const chatContainer = ref(null);
 const fileInput = ref(null);
+const messages = computed(() => chatStore.messages);
 
 const params = ref({
   systemPrompt: "You are a helpful, smart, and concise AI assistant.",
@@ -291,7 +295,8 @@ const scrollToBottom = async () => {
 };
 
 const clearChat = () => {
-  messages.value = [];
+  chatStore.clearActiveSession();
+  chatStore.startSession();
 };
 
 // Logic: Send & Stream
@@ -304,30 +309,41 @@ const sendMessage = async () => {
     return;
 
   // 1. Add User Message
-  messages.value.push({ role: "user", content: currentInput.value.trim() });
+  await chatStore.addMessage({
+    role: "user",
+    content: currentInput.value.trim(),
+  });
   currentInput.value = "";
   scrollToBottom();
 
   // 2. Prep Assistant Message Shell
   isGenerating.value = true;
-  const assistantMsgIndex = messages.value.length;
-  messages.value.push({ role: "assistant", content: "" });
+  const assistantMsgIndex = chatStore.messages.length;
+  chatStore.messages.push({ role: "assistant", content: "" });
 
   // 3. Call API Adapter with Streaming Callbacks
   await apiAdapter.generateStream({
     modelId: selectedModelId.value,
-    messages: messages.value.slice(0, -1), // Send all but the empty assistant shell
+    messages: chatStore.messages.slice(0, -1), // Send all but the empty assistant shell
     systemPrompt: params.value.systemPrompt,
     params: params.value,
     onChunk: (text) => {
-      messages.value[assistantMsgIndex].content += text;
+      chatStore.messages[assistantMsgIndex].content += text;
       scrollToBottom();
     },
-    onDone: () => {
+    onDone: async () => {
+      // Persist the final assistant message
+      const finalMsg = chatStore.messages[assistantMsgIndex];
+      if (finalMsg && finalMsg.content) {
+        await storageService.saveChatMessage(
+          chatStore.activeSessionId,
+          { ...finalMsg, session_id: chatStore.activeSessionId },
+        );
+      }
       isGenerating.value = false;
     },
     onError: (errMessage) => {
-      messages.value[assistantMsgIndex].content +=
+      chatStore.messages[assistantMsgIndex].content +=
         `\n\n[Error: ${errMessage}]`;
       isGenerating.value = false;
       scrollToBottom();

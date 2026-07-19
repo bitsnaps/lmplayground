@@ -33,7 +33,11 @@ export const storageService = {
 
   async saveData(table, data) {
     // Always save to localStorage as cache/fallback
-    localStorage.setItem(`omni_${table}`, JSON.stringify(data));
+    try {
+      localStorage.setItem(`omni_${table}`, JSON.stringify(data));
+    } catch (e) {
+      console.warn(`localStorage quota exceeded for table "${table}":`, e);
+    }
 
     if (this.getMode() === "postgres") {
       try {
@@ -152,7 +156,11 @@ export const storageService = {
     const key = `omni_chat_${sessionId}`;
     const existing = JSON.parse(localStorage.getItem(key) || "[]");
     existing.push(message);
-    localStorage.setItem(key, JSON.stringify(existing));
+    try {
+      localStorage.setItem(key, JSON.stringify(existing));
+    } catch (e) {
+      console.warn(`localStorage quota exceeded for chat "${sessionId}":`, e);
+    }
 
     if (this.getMode() === "postgres") {
       try {
@@ -233,7 +241,11 @@ export const storageService = {
   },
 
   saveApiKeys(keysMap) {
-    localStorage.setItem("omni_api_keys", JSON.stringify(keysMap));
+    try {
+      localStorage.setItem("omni_api_keys", JSON.stringify(keysMap));
+    } catch (e) {
+      console.warn("localStorage quota exceeded for API keys:", e);
+    }
   },
 
   // ─── Database Initialization ───────────────────────────────

@@ -161,6 +161,63 @@ describe("proxy function", () => {
     expect(res.statusCode).toBe(500);
   });
 
+  it("should reject localhost URLs (SSRF protection)", async () => {
+    const res = await handler({
+      httpMethod: "POST",
+      body: JSON.stringify({
+        providerUrl: "http://localhost:8080/api",
+        payload: {},
+      }),
+    });
+    expect(res.statusCode).toBe(400);
+    const body = JSON.parse(res.body);
+    expect(body.error).toMatch(/not allowed/i);
+  });
+
+  it("should reject private IPv4 addresses (SSRF protection)", async () => {
+    const res = await handler({
+      httpMethod: "POST",
+      body: JSON.stringify({
+        providerUrl: "http://192.168.1.1/api",
+        payload: {},
+      }),
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("should reject cloud metadata endpoint (SSRF protection)", async () => {
+    const res = await handler({
+      httpMethod: "POST",
+      body: JSON.stringify({
+        providerUrl: "http://169.254.169.254/latest/meta-data",
+        payload: {},
+      }),
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("should reject non-http protocols (SSRF protection)", async () => {
+    const res = await handler({
+      httpMethod: "POST",
+      body: JSON.stringify({
+        providerUrl: "file:///etc/passwd",
+        payload: {},
+      }),
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("should reject 127.x addresses (SSRF protection)", async () => {
+    const res = await handler({
+      httpMethod: "POST",
+      body: JSON.stringify({
+        providerUrl: "http://127.0.0.1:3000/api",
+        payload: {},
+      }),
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
   it("should set Content-Type header when not provided", async () => {
     globalThis.fetch.mockResolvedValueOnce({
       ok: true,
