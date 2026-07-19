@@ -396,9 +396,7 @@ watch(fetchedModels, (list) => {
     modelSuggestions.value = [...merged].sort();
 });
 
-// Auto-fetch when provider changes
-watch(() => newModel.value.provider_id, (id) => { if (id) fetchProviderModels(id); });
-watch(() => editModel.value.provider_id, (id) => { if (id) fetchProviderModels(id); });
+// Auto-fetch when provider changes — moved after newModel/editModel declarations below
 
 // Initialize Data if not loaded
 onMounted(() => {
@@ -507,6 +505,10 @@ const saveModel = async (id) => {
     await store.updateModel(id, { ...editModel.value });
     cancelEditModel();
 };
+
+// Auto-fetch models when provider changes in either form
+watch(() => newModel.value.provider_id, (id) => { if (id) fetchProviderModels(id); });
+watch(() => editModel.value.provider_id, (id) => { if (id) fetchProviderModels(id); });
 </script>
 
 <style scoped>
