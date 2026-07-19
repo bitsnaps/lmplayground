@@ -384,9 +384,15 @@ const isLoadingModels = ref(false);
 const fetchProviderModels = async (providerId) => {
     const provider = store.providers.find((p) => p.id === providerId);
     if (!provider) return;
+    fetchedModels.value = [];
     isLoadingModels.value = true;
-    fetchedModels.value = await apiAdapter.fetchModels(provider);
-    isLoadingModels.value = false;
+    try {
+        fetchedModels.value = await apiAdapter.fetchModels(provider);
+    } catch {
+        fetchedModels.value = [];
+    } finally {
+        isLoadingModels.value = false;
+    }
 };
 
 // Merge known + fetched models for autocomplete
@@ -493,7 +499,8 @@ const editModel = ref({ name: "", api_model_id: "", type: "text", supports_visio
 
 const startEditModel = (mod) => {
     editingModelId.value = mod.id;
-    editModel.value = { name: mod.name, api_model_id: mod.api_model_id, type: mod.type, supports_vision: mod.supports_vision, context_window: mod.context_window };
+    editModel.value = { name: mod.name, api_model_id: mod.api_model_id, type: mod.type, supports_vision: mod.supports_vision, context_window: mod.context_window, provider_id: mod.provider_id };
+    if (mod.provider_id) fetchProviderModels(mod.provider_id);
 };
 
 const cancelEditModel = () => {
@@ -506,9 +513,8 @@ const saveModel = async (id) => {
     cancelEditModel();
 };
 
-// Auto-fetch models when provider changes in either form
+// Auto-fetch models when provider is selected in Add form
 watch(() => newModel.value.provider_id, (id) => { if (id) fetchProviderModels(id); });
-watch(() => editModel.value.provider_id, (id) => { if (id) fetchProviderModels(id); });
 </script>
 
 <style scoped>
