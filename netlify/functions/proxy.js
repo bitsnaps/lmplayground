@@ -130,7 +130,14 @@ export const handler = async (event) => {
       finalHeaders["Content-Type"] = "application/json";
     }
 
-    const response = await fetch(providerUrl, {
+    // Auto-append /chat/completions if URL looks like a base API URL
+    let resolvedUrl = providerUrl;
+    const hasEndpoint = /\/(chat\/completions|messages|generate|embeddings|images\/generations)(\?|$)/.test(resolvedUrl);
+    if (!hasEndpoint) {
+      resolvedUrl = resolvedUrl.replace(/\/+$/, "") + "/chat/completions";
+    }
+
+    const response = await fetch(resolvedUrl, {
       method: "POST",
       headers: finalHeaders,
       body: JSON.stringify(payload),
