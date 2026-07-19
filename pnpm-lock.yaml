@@ -14,9 +14,6 @@ dependencies:
   highlight.js:
     specifier: ^11.11.1
     version: 11.11.1
-  lmplayground:
-    specifier: 'link:'
-    version: 'link:'
   marked:
     specifier: ^18.0.3
     version: 18.0.3
