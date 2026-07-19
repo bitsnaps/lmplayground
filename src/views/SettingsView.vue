@@ -223,11 +223,17 @@
                                     <form @submit.prevent="saveModel(mod.id)">
                                         <div class="mb-2">
                                             <label class="form-label small">Display Name</label>
-                                            <input type="text" v-model="editModel.name" class="form-control form-control-sm" required />
+                                            <input type="text" v-model="editModel.name" class="form-control form-control-sm" placeholder="e.g. GPT-4 Turbo" />
                                         </div>
                                         <div class="mb-2">
                                             <label class="form-label small">API Model ID</label>
-                                            <input type="text" v-model="editModel.api_model_id" class="form-control form-control-sm" required />
+                                            <AutocompleteInput
+                                                v-model="editModel.api_model_id"
+                                                :options="knownModelNames"
+                                                placeholder="e.g. gpt-4-turbo"
+                                                input-class="form-control-sm"
+                                                @update:modelValue="onEditModelIdChange"
+                                            />
                                         </div>
                                         <div class="mb-2">
                                             <label class="form-label small">Capability Type</label>
@@ -287,19 +293,18 @@
                                             v-model="newModel.name"
                                             class="form-control form-control-sm"
                                             placeholder="e.g. GPT-4 Turbo"
-                                            required
                                         />
                                     </div>
                                     <div class="mb-2">
                                         <label class="form-label small"
                                             >API Model ID</label
                                         >
-                                        <input
-                                            type="text"
+                                        <AutocompleteInput
                                             v-model="newModel.api_model_id"
-                                            class="form-control form-control-sm"
+                                            :options="knownModelNames"
                                             placeholder="e.g. gpt-4-turbo"
-                                            required
+                                            input-class="form-control-sm"
+                                            @update:modelValue="onNewModelIdChange"
                                         />
                                     </div>
                                     <div class="mb-2">
@@ -364,6 +369,8 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from "vue";
 import { useProvidersStore } from "../store/providers";
+import { knownModelNames } from "../utils/knownModels.js";
+import AutocompleteInput from "../components/common/AutocompleteInput.vue";
 
 const store = useProvidersStore();
 
@@ -442,6 +449,19 @@ const submitModel = () => {
         supports_vision: false,
         context_window: 8192,
     };
+};
+
+// Auto-fill Display Name from API Model ID
+const onNewModelIdChange = (val) => {
+    if (!newModel.value.name) {
+        newModel.value.name = val.toUpperCase().replace(/-/g, " ");
+    }
+};
+
+const onEditModelIdChange = (val) => {
+    if (!editModel.value.name) {
+        editModel.value.name = val.toUpperCase().replace(/-/g, " ");
+    }
 };
 
 // Model edit state
